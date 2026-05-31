@@ -12,41 +12,53 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
+    options.UseNpgsql(connectionString)
 );
 
-
-// CORS: política local para permitir frontends em dev (React/Vite/Angular)
-var allowedOrigins = new[] {
+var allowedOrigins = new[]
+{
     "http://localhost:3000",
     "https://localhost:3000",
     "http://localhost:5173",
     "https://localhost:5173",
     "http://localhost:4200",
     "https://localhost:4200",
-    "http://localhost:5293",
-    "https://localhost:5293"
+    "https://SEU-FRONT.vercel.app"
 };
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("LocalCors", policy =>
+    options.AddPolicy("AppCors", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
-// Password hasher
+
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-// JWT configuration (reads from appsettings: Jwt:Key, Issuer, Audience)
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = jwtSection.GetValue<string>("Key");
-var jwtIssuer = jwtSection.GetValue<string>("Issuer");
-var jwtAudience = jwtSection.GetValue<string>("Audience");
+
+var jwtKey =
+    jwtSection.GetValue<string>("Key")
+    ?? Environment.GetEnvironmentVariable("Jwt__Key");
+
+var jwtIssuer =
+    jwtSection.GetValue<string>("Issuer")
+    ?? Environment.GetEnvironmentVariable("Jwt__Issuer");
+
+var jwtAudience =
+    jwtSection.GetValue<string>("Audience")
+    ?? Environment.GetEnvironmentVariable("Jwt__Audience");
+
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey ?? string.Empty);
 
 builder.Services.AddAuthentication(options =>
@@ -54,22 +66,21 @@ builder.Services.AddAuthentication(options =>
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-    .AddJwtBearer(options =>
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
-        };
-    });
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(keyBytes)
+    };
+});
 
 var app = builder.Build();
-
 
 if (app.Environment.IsDevelopment())
 {
@@ -81,11 +92,11 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+app.UseCors("AppCors");
+
 app.UseAuthentication();
-app.UseHttpsRedirection();
 
 app.UseAuthorization();
-app.UseCors("LocalCors");
 
 app.MapControllers();
 
