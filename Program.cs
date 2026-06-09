@@ -33,7 +33,7 @@ var allowedOrigins = new[]
     "https://localhost:5173",
     "http://localhost:4200",
     "https://localhost:4200",
-    "https://dashboard-cod-scanner.vercel.app/login"
+    "https://dashboard-cod-scanner.vercel.app"
 };
 
 builder.Services.AddCors(options =>
