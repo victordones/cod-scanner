@@ -16,6 +16,11 @@ var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
 
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' não foi configurada.");
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString)
 );
@@ -59,7 +64,12 @@ var jwtAudience =
     jwtSection.GetValue<string>("Audience")
     ?? Environment.GetEnvironmentVariable("Jwt__Audience");
 
-var keyBytes = Encoding.UTF8.GetBytes(jwtKey ?? string.Empty);
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("Jwt__Key não foi configurada.");
+}
+
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -81,6 +91,12 @@ builder.Services.AddAuthentication(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
