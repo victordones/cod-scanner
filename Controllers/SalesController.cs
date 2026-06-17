@@ -96,4 +96,46 @@ public class SalesController : ControllerBase
 
         return Ok(sales);
     }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<Sale>> Update(Guid id, [FromBody] CreateSaleFromBarcodeDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var sale = await _context.Sales.FindAsync(id);
+
+        if (sale is null)
+            return NotFound();
+
+        var scannedUtc = dto.ScannedAt.Kind == DateTimeKind.Utc
+            ? dto.ScannedAt
+            : dto.ScannedAt.ToUniversalTime();
+
+        sale.ProductName = dto.ProductName;
+        sale.WeightKg = dto.WeightKg;
+        sale.TotalCents = dto.TotalCents;
+        sale.PricePerKgCents = dto.PricePerKgCents;
+        sale.ScannedAt = scannedUtc;
+        sale.ProductCode = dto.ProductCode;
+        sale.Barcode = dto.Barcode;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(sale);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var sale = await _context.Sales.FindAsync(id);
+
+        if (sale is null)
+            return NotFound();
+
+        _context.Sales.Remove(sale);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
